@@ -1,5 +1,5 @@
 #!/bin/bash
-# Author: Chmouel Boudjnah <chmouel@chmouel.com>
+# Author: Chmouel Boudjnah <chmouel.boudjnah@rackspace.co.uk>
 # Not officially supported by Rackspace only as a best effort basis :)
 
 # Define yes to make it to copy to url to clipboard (via a shortened url
@@ -9,36 +9,86 @@ COPY_URL_TO_CLIPBOARD=yes
 # Containers to ignore in the list
 CONTAINERS_TO_IGNORE=".CDN_ACCESS_LOGS"
 
+# Default GUI Type
+GUI_TYPE="text"
+
+# Auth Server (change it if you have a custom swift install)
+AUTH_SERVER_LON=https://lon.auth.api.rackspacecloud.com/v1.0
+AUTH_SERVER_US=https://auth.api.rackspacecloud.com/v1.0
+
+if [[ -z ${DISPLAY}} ]];then
+    GUI_TYPE="text"
+elif [[ ${DISPLAY} == "localhost:10" ]];then
+    GUI_TYPE="text"
+fi
+
+if [[ $GUI_TYPE == "gui" ]];then
+    function ask_question {
+        question=$1
+        title=$2
+        width=$3
+        height=$4
+        zenity --title "$title" --entry \
+            --text "$question: " --width $width --height $height
+    }
+    function msg() {
+        msg=$1
+        title=$2
+        width=$3
+        height=$4             
+
+        zenity --title "$title" --error --text \
+            "$msg" \
+            --width ${width} --height ${height};
+    }
+
+else
+    function ask_question {
+        question=$1
+        read -p "$question: "
+        echo $REPLY
+    }
+
+    function msg {
+        echo $1
+    }
+fi
+
+
 function get_api_key {
-    RCLOUD_API_USER=$(zenity --title "Enter Username" --entry \
-        --text "Rackspace Cloud Username:" --width 200 --height 50)
+    RCLOUD_API_USER=$(ask_question "Rackspace Cloud Username" "Enter Username"  200 50)
     [[ -z $RCLOUD_API_USER ]] && exit 1 #press cancel
-    RCLOUD_API_KEY=$(zenity --title "Enter Username" --entry \
-        --text "Rackspace Cloud API Key:" --width 200 --height 50)
+    RCLOUD_API_KEY=$(ask_question "Rackspace Cloud API Key" "Enter API Key"  200 50)
+
+    LOCATION=$(ask_question "Location US/UK (default: US)" "Enter Location" 200 50)
+    
+    if [[ $LOCATION == "uk" || $LOCATION == "UK" ]];then
+        AUTH_SERVER=$AUTH_SERVER_LON
+    else 
+        AUTH_SERVER=$AUTH_SERVER_US
+    fi
+
     [[ -n ${RCLOUD_API_KEY} && -n ${RCLOUD_API_USER} ]] || {
-        zenity --title "Missing Username/API Key" --error --text \
-            "You have not specified a Rackspace Cloud username or API key" \
-            --width 200 --height 25;
+        msg "You have not specified a Rackspace Cloud username or API key" "Missing Username/API Key" 200 25
         exit 1;
     }
     check_api_key
     mkdir -p ${HOME}/.config/rackspace-cloud
     echo "RCLOUD_API_USER=${RCLOUD_API_USER}" > ${HOME}/.config/rackspace-cloud/config
     echo "RCLOUD_API_KEY=${RCLOUD_API_KEY}" >> ${HOME}/.config/rackspace-cloud/config
+    echo "AUTH_SERVER=${AUTH_SERVER}" >> ${HOME}/.config/rackspace-cloud/config
 }
 
 function check_api_key {
     temp_file=$(mktemp /tmp/.rackspace-cloud.XXXXXX)
     local good_key=
     curl -s -f -D - \
-      -H "X-Auth-Key: ${RCLOUD_API_KEY}" \
-      -H "X-Auth-User: ${RCLOUD_API_USER}" \
-      https://auth.api.rackspacecloud.com/v1.0 >${temp_file} && good_key=1
+        -H "X-Auth-Key: ${RCLOUD_API_KEY}" \
+        -H "X-Auth-User: ${RCLOUD_API_USER}" \
+        ${AUTH_SERVER} >${temp_file} && good_key=1
 
     if [[ -z $good_key ]];then
-        zenity --title "Bad Username/API Key" --error --text \
-            "Cannot identify with your Rackspace Cloud username or API key" \
-            --width 200 --height 25;
+        msg "Cannot identify with your Rackspace Cloud username or API key" "Bad Username/API Key" 200 25
         exit 1;
     fi
 
@@ -58,21 +108,17 @@ function create_container {
     local container=$1
 
     if [[ -z $container ]];then
-        zenity --title "Need a container name" --error --text \
-            "You need to specify a container name" \
-            --width 200 --height 25;
+        msg "You need to specify a container name" "Need a container name" 200 25
         exit 1;
     fi
 
     created=
     curl -f -k -X PUT -D - \
-      -H "X-Auth-Token: ${AuthToken}" \
-      ${StorageUrl}/${container} && created=1
+        -H "X-Auth-Token: ${AuthToken}" \
+        ${StorageUrl}/${container} && created=1
 
     if [[ -z $created ]];then
-        zenity --title "Cannot create container" --error --text \
-            "Cannot create container name ${container}" \
-            --width 200 --height 25;
+        msg "Cannot create container name ${container}" "Cannot create container" 200 25
         exit 1;
     fi
 }
@@ -87,13 +133,11 @@ function put_object {
         object=${file}
     fi
     object=$(basename ${object})
-    #url encode in sed yeah i am not insane i have googled that
+        #url encode in sed yeah i am not insane i have googled that
     object=$(echo $object|sed -e 's/%/%25/g;s/ /%20/g;s/ /%09/g;s/!/%21/g;s/"/%22/g;s/#/%23/g;s/\$/%24/g;s/\&/%26/g;s/'\''/%27/g;s/(/%28/g;s/)/%29/g;s/\*/%2a/g;s/+/%2b/g; s/,/%2c/g; s/-/%2d/g; s/\./%2e/g; s/:/%3a/g; s/;/%3b/g; s//%3e/g; s/?/%3f/g; s/@/%40/g; s/\[/%5b/g; s/\\/%5c/g; s/\]/%5d/g; s/\^/%5e/g; s/_/%5f/g; s/`/%60/g; s/{/%7b/g; s/|/%7c/g; s/}/%7d/g; s/~/%7e/g; s/      /%09/g;')
     
     if [[ ! -e ${file} ]];then
-        zenity --title "Cannot find file" --error --text \
-            "Cannot find file ${file}" \
-            --width 200 --height 25;
+        msg "Cannot find file ${file}" "Cannot find file" 200 25
         exit 1
     fi
 
@@ -105,24 +149,22 @@ function put_object {
     
     uploaded=
 
-    curl -o/dev/null -f -X PUT -T ${file} \
-        -H "ETag: ${etag}" \
-        -H "Content-type: ${ctype}" \
-        -H "X-Auth-Token: ${StorageToken}" \
-        ${StorageUrl}/${container}/${object} 2>&1|zenity --text "Uploading ${object}"  --title "Uploading" \
-        --width 500 --height 50 \
-        --progress --pulsate --auto-kill --auto-close
-
-    if [[ $COPY_URL_TO_CLIPBOARD == "yes" || $COPY_URL_TO_CLIPBOARD == "YES" || $COPY_URL_TO_CLIPBOARD == "Yes" ]];then
-        if [[ -x /usr/bin/xclip ]];then
-            PUBLIC_URL=$(container_public ${container})
-            if [[ -n $PUBLIC_URL ]];then
-                short_url=$(curl -s "http://ggl-shortener.appspot.com/?url=${PUBLIC_URL}/$object" | sed 's/.*http/http/;s/"}//')
-                echo $short_url|xclip -selection clipboard
-            fi
-        fi
+    if [[ ${GUI_TYPE} != "gui" ]];then
+        echo "Uploading ${file}"
+        curl -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
+        echo
+    else
+        curl -o /dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object} 2>&1|zenity --text "Uploading ${object}"  --title "Uploading" \
+            --width 500 --height 50 \
+            --progress --pulsate --auto-kill --auto-close
     fi
-    echo $short_url
+
+    PUBLIC_URL=$(container_public ${container})
+    if [[ -n $PUBLIC_URL ]];then
+        short_url=$(curl -s "http://is.gd/api.php?longurl=${PUBLIC_URL}/$object")
+        echo "$short_url - ${file}"
+        [[ -x /usr/bin/xclip ]] && echo $short_url|xclip -selection clipboard
+    fi
 }
 
 function container_public {
@@ -143,8 +185,8 @@ function choose_container {
     fi  
     
     CONTAINERS_LIST=$(curl -s -f -k -X GET \
-      -H "X-Auth-Token: ${AuthToken}" \
-      ${StorageUrl}|sort -n
+        -H "X-Auth-Token: ${AuthToken}" \
+        ${StorageUrl}|sort -n
     )
     
     for cont in ${CONTAINERS_LIST};do
@@ -160,13 +202,26 @@ function choose_container {
         if [[ $cont == ${lastcontainer} ]];then
             v=TRUE
         fi
-        args="$args ${v} ${cont}"
+
+        if [[ $GUI_TYPE == "gui" ]];then
+            args="$args ${v} ${cont}"
+        else
+            args="$args ${cont}"
+        fi
     done
-    
-    container=$(zenity  --height=500 --list --title "Which Container"  --text "Which Container you want to upload?" --radiolist  \
-        --column "Pick" --column "Container" $args
-    )
-    
+
+
+    if [[ $GUI_TYPE == gui ]];then
+        container=$(zenity  --height=500 --list --title "Which Container"  --text "Which Container you want to upload?" --radiolist  \
+            --column "Pick" --column "Container" $args
+        )
+    else
+        PS3="Select Container: "
+        select container in $args;do
+            break
+        done
+    fi
+
     [[ -z ${container} ]] && return
     
     mkdir -p ${HOME}/.config/rackspace-cloud
@@ -175,6 +230,13 @@ function choose_container {
 }
 
 set -e
+ARGS=$@
+
+if [[ -z ${ARGS} ]];then
+    msg "No files specified." "No files specified." 200 50
+    exit 1
+fi
+
 [[  -e ${HOME}/.config/rackspace-cloud/config ]] && \
     source ${HOME}/.config/rackspace-cloud/config
 [[ -n ${RCLOUD_API_KEY} && -n ${RCLOUD_API_USER} ]] && check_api_key || get_api_key
@@ -185,23 +247,28 @@ if [[ $1 == "-d" ]];then
 fi
 
 container=$(choose_container)
+
 if [[ -z ${container} ]];then
     exit
 fi
 if [[ -n ${choose_default} ]];then
-    echo "Upload to container $container."
+    echo "Uploading to container: $container."
 fi
 
-ARGS=$@
 IFS=""
 for arg in $ARGS;do
     tarname=
     file=$(readlink -f ${arg})
     dest_name=
     
-    [[ -e ${file} ]] || continue
-    [[ -f ${file} || -d ${file} ]] || continue
-    
+    [[ -e ${file} ]] || {
+        echo "$file does not seem to exist."
+        continue
+    }
+    [[ -f ${file} || -d ${file} ]] || {
+        echo "$file does not seem a file or directory."
+        continue
+    }
     if [[ -d ${file} ]];then
         if [[ -w ./ ]];then
             tardir="."
@@ -210,9 +277,14 @@ for arg in $ARGS;do
         fi
         tarname=${tardir}/${arg}-cf-tarball.tar.gz #in case if already exist we don't destruct it
         dest_name=${arg}.tar.gz
-        tar cvzf $tarname ${arg}|zenity --text "Making tarball of ${file}"  --title "Compressing" \
-        --width 500 --height 50 \
-        --progress --pulsate --auto-kill --auto-close
+
+        if [[ $GUI_TYPE == "gui" ]];then
+            tar cvzf $tarname ${arg}|zenity --text "Making tarball of ${file}"  --title "Compressing" \
+                --width 500 --height 50 \
+                --progress --pulsate --auto-kill --auto-close
+        else
+            tar cvzf $tarname ${arg}
+        fi
         file=${tarname}
     fi
 
