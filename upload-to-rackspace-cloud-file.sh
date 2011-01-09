@@ -21,6 +21,8 @@ if [[ -z ${DISPLAY}} ]];then
     GUI_TYPE="text"
 elif [[ ${DISPLAY} == "localhost:10" ]];then
     GUI_TYPE="text"
+elif ! which zentiy >/dev/null;then
+    GUI_TYPE="text"
 fi
 
 if [[ $GUI_TYPE == "gui" ]];then
