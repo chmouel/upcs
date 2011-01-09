@@ -15,6 +15,7 @@ GUI_TYPE="text"
 # Auth Server (change it if you have a custom swift install)
 AUTH_SERVER_LON=https://lon.auth.api.rackspacecloud.com/v1.0
 AUTH_SERVER_US=https://auth.api.rackspacecloud.com/v1.0
+DEFAULT_AUTH_SERVER=${AUTH_SERVER_US}
 
 if [[ -z ${DISPLAY}} ]];then
     GUI_TYPE="text"
@@ -82,6 +83,8 @@ function get_api_key {
 function check_api_key {
     temp_file=$(mktemp /tmp/.rackspace-cloud.XXXXXX)
     local good_key=
+    [[ -z ${AUTH_SERVER} ]] && AUTH_SERVER=${DEFAULT_AUTH_SERVER}
+
     curl -s -f -D - \
         -H "X-Auth-Key: ${RCLOUD_API_KEY}" \
         -H "X-Auth-User: ${RCLOUD_API_USER}" \
@@ -97,7 +100,7 @@ function check_api_key {
         line=${line#X-}
         key=${line%: *};key=${key//-/}
         value=${line#*: }
-        value=$(echo ${value}|sed 's/\r$//')
+        value=$(echo ${value}|tr -d '\r')
         eval "export $key=$value"
     done < ${temp_file}
 
@@ -125,7 +128,7 @@ function create_container {
 
 function put_object {
     local container=$1
-    local file=$(readlink -f $2)
+    local file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' $2)
     local dest_name=$3
     if [[ -n $3 ]];then
         object=$3
@@ -140,9 +143,15 @@ function put_object {
         msg "Cannot find file ${file}" "Cannot find file" 200 25
         exit 1
     fi
-
-    local etag=$(md5sum ${file});etag=${etag%% *} #TODO progress
-    local ctype=$(file -bi ${file});ctype=${ctype%%;*}
+    
+    #MaxOSX
+    if [[ -e /sbin/md5 ]];then
+        local etag=$(md5 ${file});etag=${etag##* }
+        local ctype=$(file -bI ${file});ctype=${ctype%%;*}
+    else
+        local etag=$(md5sum ${file});etag=${etag%% *} #TODO progress
+        local ctype=$(file -bi ${file});ctype=${ctype%%;*}
+    fi
     if [[ -z ${ctype} || ${ctype} == *corrupt* ]];then
         ctype="application/octet-stream"
     fi
@@ -161,15 +170,16 @@ function put_object {
 
     PUBLIC_URL=$(container_public ${container})
     if [[ -n $PUBLIC_URL ]];then
-        short_url=$(curl -s "http://is.gd/api.php?longurl=${PUBLIC_URL}/$object")
+        short_url=$(curl -s "http://is.gd/api.php?longurl=${PUBLIC_URL}/$object"|tr -d '\r'|tr -d '\n')
         echo "$short_url - ${file}"
         [[ -x /usr/bin/xclip ]] && echo $short_url|xclip -selection clipboard
+        [[ -x /usr/bin/pbcopy ]] && echo $short_url|pbcopy
     fi
 }
 
 function container_public {
     local cont=$@
-    curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $CDNManagementUrl/$cont|grep "X-CDN-URI"|sed -e 's/\r$//;s/X-CDN-URI: //'
+    curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $CDNManagementUrl/$cont|grep "X-CDN-URI"|sed -e 's/\r$//;s/X-CDN-URI: //'|tr -d '\r'
 }
 
 function choose_container {
@@ -258,7 +268,7 @@ fi
 IFS=""
 for arg in $ARGS;do
     tarname=
-    file=$(readlink -f ${arg})
+    file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' ${arg})
     dest_name=
     
     [[ -e ${file} ]] || {
