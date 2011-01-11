@@ -17,6 +17,12 @@ AUTH_SERVER_LON=https://lon.auth.api.rackspacecloud.com/v1.0
 AUTH_SERVER_US=https://auth.api.rackspacecloud.com/v1.0
 DEFAULT_AUTH_SERVER=${AUTH_SERVER_US}
 
+# Specify here something different than by default google
+# Choice are :
+# isgd  for http://is.gd
+# google for http://goo.gl (default)
+SHORT_URL_SERVICE="google"
+
 if [[ -z ${DISPLAY}} ]];then
     GUI_TYPE="text"
 elif [[ ${DISPLAY} == "localhost:10" ]];then
@@ -128,6 +134,25 @@ function create_container {
     fi
 }
 
+function shorten_url() {
+    url=$1
+
+    if [[ ${SHORT_URL_SERVICE} == isgd  ]];then
+        _surl=$(curl -s "http://is.gd/api.php?longurl=${url}")
+    else
+        api_key="AIzaSyDmzsxlzULxBpJJmg5wEUuPQY9g_afwcuk"
+        _surl=$(curl -s \
+            "https://www.googleapis.com/urlshortener/v1/url?key=${api_key}" \
+            -H 'Content-Type: application/json' \
+            -d "{\"longUrl\": \"${url}\"}" | sed -n '/id/ { s/.*: .//;s/".*//;p;}'
+            )
+    fi
+
+    if [[ -n ${_surl} ]];then
+        echo ${_surl}|tr -d '\r'|tr -d '\n'
+    fi
+}
+
 function put_object {
     local container=$1
     local file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' $2)
@@ -172,7 +197,7 @@ function put_object {
 
     PUBLIC_URL=$(container_public ${container})
     if [[ -n $PUBLIC_URL ]];then
-        short_url=$(curl -s "http://is.gd/api.php?longurl=${PUBLIC_URL}/$object"|tr -d '\r'|tr -d '\n')
+        short_url=$(shorten_url "${PUBLIC_URL}/$object")
         echo "$short_url - ${file}"
         [[ -x /usr/bin/xclip ]] && echo $short_url|xclip -selection clipboard
         [[ -x /usr/bin/pbcopy ]] && echo $short_url|pbcopy
