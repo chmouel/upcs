@@ -144,7 +144,7 @@ function shorten_url() {
         _surl=$(curl -s \
             "https://www.googleapis.com/urlshortener/v1/url?key=${api_key}" \
             -H 'Content-Type: application/json' \
-            -d "{\"longUrl\": \"${url}\"}" | sed -n '/id/ { s/.*: .//;s/".*//;p;}'
+            -d "{\"longUrl\": \"${url}\"}" | sed -n '/id/ { s/.*: .//;s/".*//;p;q;}'
             )
     fi
 
@@ -198,7 +198,7 @@ function put_object {
     PUBLIC_URL=$(container_public ${container})
     if [[ -n $PUBLIC_URL ]];then
         short_url=$(shorten_url "${PUBLIC_URL}/$object")
-        echo "$short_url | $object"
+        echo "$short_url | $file"
         [[ -x /usr/bin/xclip ]] && echo $short_url|xclip -selection clipboard
         [[ -x /usr/bin/pbcopy ]] && echo $short_url|pbcopy
     fi
