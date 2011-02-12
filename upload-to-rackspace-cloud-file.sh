@@ -99,7 +99,7 @@ function check_api_key {
         ${AUTH_SERVER} >${temp_file} && good_key=1
 
     if [[ -z $good_key ]];then
-        msg "Cannot identify with your Rackspace Cloud username or API key" "Bad Username/API Key" 200 25
+        msg "You have a bad username or api/key." "Bad Username/API Key" 200 25
         exit 1;
     fi
 
@@ -112,6 +112,11 @@ function check_api_key {
         eval "export $key=$value"
     done < ${temp_file}
 
+    if [[ -z ${StorageUrl} ]];then
+        echo "Invalid auth url."
+        exit 1
+    fi
+    
     rm -f ${temp_file}
 }
 
@@ -267,34 +272,48 @@ function choose_container {
 }
 
 set -e
-ARGS=$@
+[[  -e ${HOME}/.config/rackspace-cloud/config ]] && \
+    source ${HOME}/.config/rackspace-cloud/config
 
+choose_default=
+while getopts ":c:du:k:a:" opt; do
+  case $opt in
+    u)
+    RCLOUD_API_USER=$OPTARG
+    ;;
+    k)
+    RCLOUD_API_KEY=$OPTARG
+    ;;
+    a)
+    AUTH_SERVER=$OPTARG
+    ;;
+    c)
+    container=$OPTARG
+    ;;
+    d)
+    choose_default=True
+    ;;
+    \?)
+    echo "Invalid option: -$OPTARG" >&2
+    exit 1
+    ;;
+  esac
+done
+shift $((OPTIND-1))
+
+ARGS=$@
+echo $ARGS
 if [[ -z ${ARGS} ]];then
     msg "No files specified." "No files specified." 200 50
     exit 1
 fi
 
-[[  -e ${HOME}/.config/rackspace-cloud/config ]] && \
-    source ${HOME}/.config/rackspace-cloud/config
 [[ -n ${RCLOUD_API_KEY} && -n ${RCLOUD_API_USER} ]] && check_api_key || get_api_key
 
-if [[ $1 == "-d" ]];then
-    choose_default=true
-    shift 
-    ARGS=$@
-fi
+[[ -z ${container} ]] && container=$(choose_container)
+[[ -z ${container} ]] && exit 1
+[[ -n ${choose_default} ]] &&   echo "Uploading to container: $container."
 
-container=$(choose_container)
-
-if [[ -z ${container} ]];then
-    exit
-fi
-if [[ -n ${choose_default} ]];then
-    echo "Uploading to container: $container."
-    shift
-fi
-
-IFS=""
 for arg in $ARGS;do
     tarname=
     file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' ${arg})
