@@ -23,6 +23,9 @@ DEFAULT_AUTH_SERVER=${AUTH_SERVER_US}
 # google for http://goo.gl (default)
 SHORT_URL_SERVICE="google"
 
+# Set it to true if you want to use servicenet to upload.
+SERVICENET=false
+
 if [[ -z ${DISPLAY}} ]];then
     GUI_TYPE="text"
 elif [[ ${DISPLAY} == "localhost:10" ]];then
@@ -116,7 +119,13 @@ function check_api_key {
         echo "Invalid auth url."
         exit 1
     fi
+
     
+    if [[ ${SERVICENET} == true || ${SERVICENET} == True || ${SERVICENET} == TRUE ]];then
+        StorageUrl=${StorageUrl/https:\/\//https://snet-}
+        StorageUrl=${StorageUrl/http:\/\//http://snet-}
+    fi
+
     rm -f ${temp_file}
 }
 
@@ -271,13 +280,36 @@ function choose_container {
     echo $container
 }
 
+function help() {
+cat<<EOF
+upload-to-rackspace-cloud-file.sh OPTIONS FILES1 FILE2...
+
+Use curl on the backup to upload files to rackspace Cloud Files.
+
+Options are :
+
+-s - Use Servicenet to upload.
+-u=Username - specify an alternate username than the one stored in config
+-k=Api_Key - specify an alternate apikey.
+-a=Auth_URL - specify an alternate auth server.
+-c=Container - specify the container to upload.
+-d - Use the last chosen container to upload.
+
+Config is inside ~/.config/rackspace-cloud/config.
+
+EOF
+}
+
 set -e
 [[  -e ${HOME}/.config/rackspace-cloud/config ]] && \
     source ${HOME}/.config/rackspace-cloud/config
 
 choose_default=
-while getopts ":c:du:k:a:" opt; do
+while getopts ":c:dsu:k:a:" opt; do
   case $opt in
+    s)
+    SERVICENET=true
+    ;;
     u)
     RCLOUD_API_USER=$OPTARG
     ;;
@@ -302,7 +334,6 @@ done
 shift $((OPTIND-1))
 
 ARGS=$@
-echo $ARGS
 if [[ -z ${ARGS} ]];then
     msg "No files specified." "No files specified." 200 50
     exit 1
