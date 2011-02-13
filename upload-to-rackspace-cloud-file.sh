@@ -325,8 +325,13 @@ while getopts ":c:dsu:k:a:" opt; do
     d)
     choose_default=True
     ;;
+    h)
+    help
+    exit 0
+    ;;
     \?)
     echo "Invalid option: -$OPTARG" >&2
+    help
     exit 1
     ;;
   esac
