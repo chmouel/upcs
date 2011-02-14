@@ -281,6 +281,7 @@ fi
 if [[ $1 == "-d" ]];then
     choose_default=true
     shift 
+    ARGS=$@
 fi
 
 container=$(choose_container)
@@ -290,6 +291,7 @@ if [[ -z ${container} ]];then
 fi
 if [[ -n ${choose_default} ]];then
     echo "Uploading to container: $container."
+    shift
 fi
 
 IFS=""
