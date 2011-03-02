@@ -9,9 +9,6 @@ COPY_URL_TO_CLIPBOARD=yes
 # Containers to ignore in the list
 CONTAINERS_TO_IGNORE=".CDN_ACCESS_LOGS"
 
-# Default GUI Type
-GUI_TYPE="text"
-
 # Auth Server (change it if you have a custom swift install)
 AUTH_SERVER_LON=https://lon.auth.api.rackspacecloud.com/v1.0
 AUTH_SERVER_US=https://auth.api.rackspacecloud.com/v1.0
@@ -26,45 +23,15 @@ SHORT_URL_SERVICE="google"
 # Set it to true if you want to use servicenet to upload.
 SERVICENET=false
 
-if [[ -z ${DISPLAY}} ]];then
-    GUI_TYPE="text"
-elif [[ ${DISPLAY} == "localhost:10" ]];then
-    GUI_TYPE="text"
-elif ! which zentiy >/dev/null;then
-    GUI_TYPE="text"
-fi
+function ask_question {
+    question=$1
+    read -p "$question: "
+    echo $REPLY
+}
 
-if [[ $GUI_TYPE == "gui" ]];then
-    function ask_question {
-        question=$1
-        title=$2
-        width=$3
-        height=$4
-        zenity --title "$title" --entry \
-            --text "$question: " --width $width --height $height
-    }
-    function msg() {
-        msg=$1
-        title=$2
-        width=$3
-        height=$4             
-
-        zenity --title "$title" --error --text \
-            "$msg" \
-            --width ${width} --height ${height};
-    }
-
-else
-    function ask_question {
-        question=$1
-        read -p "$question: "
-        echo $REPLY
-    }
-
-    function msg {
-        echo $1
-    }
-fi
+function msg {
+    echo $1
+}
 
 
 function get_api_key {
@@ -199,15 +166,9 @@ function put_object {
     
     uploaded=
 
-    if [[ ${GUI_TYPE} != "gui" ]];then
-        echo "Uploading ${file}"
-        curl -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
-        echo
-    else
-        curl -o /dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object} 2>&1|zenity --text "Uploading ${object}"  --title "Uploading" \
-            --width 500 --height 50 \
-            --progress --pulsate --auto-kill --auto-close
-    fi
+    echo "Uploading ${file}"
+    curl -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
+    echo
 
     PUBLIC_URL=$(container_public ${container})
     if [[ -n $PUBLIC_URL ]];then
@@ -254,24 +215,14 @@ function choose_container {
             v=TRUE
         fi
 
-        if [[ $GUI_TYPE == "gui" ]];then
-            args="$args ${v} ${cont}"
-        else
-            args="$args ${cont}"
-        fi
+        args="$args ${cont}"
     done
 
 
-    if [[ $GUI_TYPE == gui ]];then
-        container=$(zenity  --height=500 --list --title "Which Container"  --text "Which Container you want to upload?" --radiolist  \
-            --column "Pick" --column "Container" $args
-        )
-    else
-        PS3="Select Container: "
-        select container in $args;do
-            break
-        done
-    fi
+    PS3="Select Container: "
+    select container in $args;do
+        break
+    done
 
     [[ -z ${container} ]] && return
     
@@ -372,13 +323,7 @@ for arg in $ARGS;do
         tarname=${tardir}/${arg}-cf-tarball.tar.gz #in case if already exist we don't destruct it
         dest_name=${arg}.tar.gz
 
-        if [[ $GUI_TYPE == "gui" ]];then
-            tar cvzf $tarname ${arg}|zenity --text "Making tarball of ${file}"  --title "Compressing" \
-                --width 500 --height 50 \
-                --progress --pulsate --auto-kill --auto-close
-        else
-            tar cvzf $tarname ${arg}
-        fi
+        tar cvzf $tarname ${arg}
         file=${tarname}
     fi
 
