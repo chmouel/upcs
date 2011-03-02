@@ -164,6 +164,10 @@ function put_object {
         ctype="application/octet-stream"
     fi
     
+    if [[ -n ${content_type} ]];then
+        ctype=${content_type}
+    fi
+    
     uploaded=
 
     echo "Uploading ${file}"
@@ -245,8 +249,15 @@ Options are :
 -a=Auth_URL - specify an alternate auth server.
 -c=Container - specify the container to upload.
 -d - Use the last chosen container to upload.
+-C=Content/Type - force a specific a content-type for file(s) uploaded.
 
 Config is inside ~/.config/rackspace-cloud/config.
+
+Example :
+
+# Force image/png as image of the file image.jpg to be uploaded in public
+# container
+upcs -C image/png -c public image.jpg
 
 EOF
 }
@@ -256,7 +267,9 @@ set -e
     source ${HOME}/.config/rackspace-cloud/config
 
 choose_default=
-while getopts ":c:dsu:k:a:" opt; do
+content_type=
+
+while getopts ":c:dsu:k:a:C:" opt; do
   case $opt in
     s)
     SERVICENET=true
@@ -275,6 +288,9 @@ while getopts ":c:dsu:k:a:" opt; do
     ;;
     d)
     choose_default=True
+    ;;
+    C)
+    content_type=$OPTARG
     ;;
     h)
     help
