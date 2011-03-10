@@ -31,6 +31,7 @@ USAGE
 For the first time running upcs will ask you for your API username and key and which Rackspace data-center to use (us or uk). If connected successfully it will ask you to which container to upload.
 
 Options::
+
   upcs OPTIONS FILES1 FILE2...
 
   Use curl on the backup to upload files to rackspace Cloud Files.
