@@ -43,6 +43,7 @@ Options::
     -a=Auth_URL - specify an alternate auth server.
     -c=Container - specify the container to upload.
     -d - Use the last chosen container to upload.
+    -q - be quiet when uploading (useful in cron env).
 
     Config is inside ~/.config/rackspace-cloud/config.
 
