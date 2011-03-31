@@ -1,7 +1,7 @@
 #!/bin/bash
 # Author: Chmouel Boudjnah <chmouel.boudjnah@rackspace.co.uk>
 # Not officially supported by Rackspace only as a best effort basis :)
-UPCS_VERSION=1.1
+UPCS_VERSION=1.2
 
 # Define yes to make it to copy to url to clipboard (via a shortened url
 # service) You need to have the software xclip installed in your system.
@@ -245,12 +245,12 @@ Use curl on the backup to upload files to rackspace Cloud Files.
 Options are :
 
 -s - Use Servicenet to upload.
--u=Username - specify an alternate username than the one stored in config
--k=Api_Key - specify an alternate apikey.
--a=Auth_URL - specify an alternate auth server.
--c=Container - specify the container to upload.
+-u Username - specify an alternate username than the one stored in config
+-k Api_Key - specify an alternate apikey.
+-a Auth_URL - specify an alternate auth server.
+-c Container - specify the container to upload.
 -d - Use the last chosen container to upload.
--C=Content/Type - force a specific a content-type for file(s) uploaded.
+-C Content/Type - force a specific a content-type for file(s) uploaded.
 
 Config is inside ~/.config/rackspace-cloud/config.
 
@@ -320,6 +320,8 @@ fi
 [[ -z ${container} ]] && exit 1
 [[ -n ${choose_default} ]] &&   echo "Uploading to container: $container."
 
+SAVEIFS=$IFS
+IFS=$(echo -en "\n\b")
 for arg in $ARGS;do
     tarname=
     file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' ${arg})
