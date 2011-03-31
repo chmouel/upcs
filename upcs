@@ -24,6 +24,9 @@ SHORT_URL_SERVICE="google"
 # Set it to true if you want to use servicenet to upload.
 SERVICENET=false
 
+# Make it quiet or not
+QUIET=false
+
 function ask_question {
     question=$1
     read -p "$question: "
@@ -171,8 +174,13 @@ function put_object {
     
     uploaded=
 
+    options=""
+    if [[ $QUIET == "true" ]];then
+        options="$options -s"
+    fi
+
     echo "Uploading ${file}"
-    curl -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
+    curl ${options} -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
     echo
 
     PUBLIC_URL=$(container_public ${container})
@@ -272,8 +280,11 @@ set -e
 choose_default=
 content_type=
 
-while getopts ":c:dsu:k:a:C:" opt; do
+while getopts ":c:dsu:k:a:C:q" opt; do
   case $opt in
+    q)
+    QUIET=true
+    ;;
     s)
     SERVICENET=true
     ;;

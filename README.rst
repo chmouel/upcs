@@ -31,20 +31,22 @@ USAGE
 For the first time running upcs will ask you for your API username and key and which Rackspace data-center to use (us or uk). If connected successfully it will ask you to which container to upload.
 
 Options::
-    upcs OPTIONS FILES1 FILE2...
 
-    Use curl on the backup to upload files to rackspace Cloud Files.
+  upcs OPTIONS FILES1 FILE2...
 
-    Options are :
+  Use curl on the backup to upload files to rackspace Cloud Files.
 
-    -s - Use Servicenet to upload.
-    -u=Username - specify an alternate username than the one stored in config
-    -k=Api_Key - specify an alternate apikey.
-    -a=Auth_URL - specify an alternate auth server.
-    -c=Container - specify the container to upload.
-    -d - Use the last chosen container to upload.
+  Options are :
 
-    Config is inside ~/.config/rackspace-cloud/config.
+  -s - Use Servicenet to upload.
+  -u=Username - specify an alternate username than the one stored in config
+  -k=Api_Key - specify an alternate apikey.
+  -a=Auth_URL - specify an alternate auth server.
+  -c=Container - specify the container to upload.
+  -d - Use the last chosen container to upload.
+  -q - be quiet when uploading (useful in cron env).
+
+  Config is inside ~/.config/rackspace-cloud/config.
 
 LICENSE
 =======
