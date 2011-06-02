@@ -1,7 +1,7 @@
 #!/bin/bash
 # Author: Chmouel Boudjnah <chmouel.boudjnah@rackspace.co.uk>
 # Not officially supported by Rackspace only as a best effort basis :)
-UPCS_VERSION=1.2
+UPCS_VERSION=1.3
 
 # Define yes to make it to copy to url to clipboard (via a shortened url
 # service) You need to have the software xclip installed in your system.
@@ -109,13 +109,15 @@ function create_container {
     fi
 
     created=
-    curl -f -k -X PUT -D - \
+    curl -o/dev/null -s -f -k -X PUT \
         -H "X-Auth-Token: ${AuthToken}" \
         ${StorageUrl}/${container} && created=1
 
     if [[ -z $created ]];then
         msg "Cannot create container name ${container}" "Cannot create container" 200 25
-        exit 1;
+        return 1;
+    else
+        echo "container ${container} has been created"
     fi
 }
 
@@ -148,7 +150,7 @@ function put_object {
         object=${file}
     fi
     object=$(basename ${object})
-        #url encode in sed yeah i am not insane i have googled that
+    #url encode in sed yeah i am not insane i have googled that
     object=$(echo $object|sed -e 's/%/%25/g;s/ /%20/g;s/ /%09/g;s/!/%21/g;s/"/%22/g;s/#/%23/g;s/\$/%24/g;s/\&/%26/g;s/'\''/%27/g;s/(/%28/g;s/)/%29/g;s/\*/%2a/g;s/+/%2b/g; s/,/%2c/g; s/-/%2d/g; s/\./%2e/g; s/:/%3a/g; s/;/%3b/g; s//%3e/g; s/?/%3f/g; s/@/%40/g; s/\[/%5b/g; s/\\/%5c/g; s/\]/%5d/g; s/\^/%5e/g; s/_/%5f/g; s/`/%60/g; s/{/%7b/g; s/|/%7c/g; s/}/%7d/g; s/~/%7e/g; s/      /%09/g;')
     
     if [[ ! -e ${file} ]];then
@@ -259,6 +261,7 @@ Options are :
 -c Container - specify the container to upload.
 -d - Use the last chosen container to upload.
 -C Content/Type - force a specific a content-type for file(s) uploaded.
+-m Container - create a container.
 
 Config is inside ~/.config/rackspace-cloud/config.
 
@@ -279,8 +282,9 @@ set -e
 
 choose_default=
 content_type=
+create_container=
 
-while getopts ":c:dsu:k:a:C:q" opt; do
+while getopts ":c:dsu:k:a:C:qm:" opt; do
   case $opt in
     q)
     QUIET=true
@@ -306,6 +310,9 @@ while getopts ":c:dsu:k:a:C:q" opt; do
     C)
     content_type=$OPTARG
     ;;
+    m)
+    create_container=$OPTARG
+    ;;
     h)
     help
     exit 0
@@ -319,13 +326,19 @@ while getopts ":c:dsu:k:a:C:q" opt; do
 done
 shift $((OPTIND-1))
 
+
+[[ -n ${RCLOUD_API_KEY} && -n ${RCLOUD_API_USER} ]] && check_api_key || get_api_key
+
+if [[ -n ${create_container} ]];then
+    create_container ${create_container}
+    exit $?
+fi
+
 ARGS=$@
 if [[ -z ${ARGS} ]];then
     msg "No files specified." "No files specified." 200 50
     exit 1
 fi
-
-[[ -n ${RCLOUD_API_KEY} && -n ${RCLOUD_API_USER} ]] && check_api_key || get_api_key
 
 [[ -z ${container} ]] && container=$(choose_container)
 [[ -z ${container} ]] && exit 1
@@ -362,3 +375,31 @@ for arg in $ARGS;do
     put_object ${container} ${file} ${dest_name}
     [[ -n ${tarname} ]] && rm -f ${tarname}
 done
+
+#TODO: Splitting
+#      some code snippet for splitting
+# CHUNK_SIZE=104857600
+# FILE=$HOME/bigfile
+
+# function split_it() {
+#     local size=$(stat -f '%z' $FILE)
+#     local lock=0
+#     local uploaded_size=0
+    
+#     while [[ ${lock} != 1 ]];do
+#         end=$(( $uploaded_size + $CHUNK_SIZE ))
+
+#         if [[ ${end} -ge ${size} ]];then
+#             end=${size}
+#         fi
+        
+#         echo "dd start=${uploaded_size} end=${end} bs=1"
+#         uploaded_size=$end
+
+#         if [[ ${size} == ${end} ]];then
+#             lock=1
+#         fi
+        
+#     done
+    
+# }

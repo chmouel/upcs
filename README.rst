@@ -39,12 +39,13 @@ Options::
   Options are :
 
   -s - Use Servicenet to upload.
-  -u=Username - specify an alternate username than the one stored in config
-  -k=Api_Key - specify an alternate apikey.
-  -a=Auth_URL - specify an alternate auth server.
-  -c=Container - specify the container to upload.
+  -u Username - specify an alternate username than the one stored in config
+  -k Api_Key - specify an alternate apikey.
+  -a Auth_URL - specify an alternate auth server.
+  -c Container - specify the container to upload.
   -d - Use the last chosen container to upload.
-  -q - be quiet when uploading (useful in cron env).
+  -C Content/Type - force a specific a content-type for file(s) uploaded.
+  -m Container - create container.
 
   Config is inside ~/.config/rackspace-cloud/config.
 
