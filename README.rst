@@ -11,7 +11,11 @@ DESCRIPTION
 
 upcs is a simple bash script that use curl on the back-end to upload files quickly to RackSpace Cloud Files.
 
-If the container uploaded is a public container  then it will give you the public link for easy sharing.
+If the container uploaded is a public container then it will give you the public link for easy sharing.
+
+upcs is the acronym to :
+
+[UP]load to [C]loud [S]wiftly.
 
 REQUIREMENT
 ===========
