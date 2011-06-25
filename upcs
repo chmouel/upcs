@@ -190,7 +190,7 @@ function put_object {
     PUBLIC_URL=$(container_public ${container})
     if [[ -n $PUBLIC_URL ]];then
         short_url=$(shorten_url "${PUBLIC_URL}/$object")
-        echo "$short_url | $file"
+        echo "$short_url | ${PUBLIC_URL}/$object | $file"
         [[ -x /usr/bin/xclip ]] && echo $short_url|xclip -selection clipboard
         [[ -x /usr/bin/pbcopy ]] && echo $short_url|pbcopy
     fi
