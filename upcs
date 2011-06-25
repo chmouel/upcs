@@ -57,9 +57,11 @@ function get_api_key {
     }
     check_api_key
     mkdir -p ${HOME}/.config/rackspace-cloud
+    chmod 700 ${HOME}/.config/rackspace-cloud
     echo "RCLOUD_API_USER=${RCLOUD_API_USER}" > ${HOME}/.config/rackspace-cloud/config
     echo "RCLOUD_API_KEY=${RCLOUD_API_KEY}" >> ${HOME}/.config/rackspace-cloud/config
     echo "AUTH_SERVER=${AUTH_SERVER}" >> ${HOME}/.config/rackspace-cloud/config
+		chmod 600 ${HOME}/.config/rackspace-cloud/config
 }
 
 function check_api_key {
