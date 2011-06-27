@@ -183,11 +183,17 @@ function put_object {
         options="$options -s"
     fi
 
+    if [[ ${container} == */* ]];then
+        object="${container#*/}/${object}"
+        container=${container%%/*}
+    fi
+    
     echo "Uploading ${file}"
     curl ${options} -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
     echo
 
     PUBLIC_URL=$(container_public ${container})
+        
     if [[ -n $PUBLIC_URL ]];then
         short_url=$(shorten_url "${PUBLIC_URL}/$object")
         echo "$short_url | ${PUBLIC_URL}/$object | $file"
