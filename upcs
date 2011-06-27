@@ -180,17 +180,17 @@ function put_object {
 
     options=""
     if [[ $QUIET == "true" ]];then
-        options="$options -s"
+        options="-s"
     fi
 
     if [[ ${container} == */* ]];then
         object="${container#*/}/${object}"
         container=${container%%/*}
     fi
-    
-    echo "Uploading ${file}"
+
+    [[ $QUIET != "true" ]] && echo "Uploading ${file}"
     curl ${options} -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
-    echo
+    [[ $QUIET != "true" ]] && echo
 
     PUBLIC_URL=$(container_public ${container})
         
