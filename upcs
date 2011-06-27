@@ -257,6 +257,7 @@ Use curl on the backup to upload files to rackspace Cloud Files.
 Options are :
 
 -s - Use Servicenet to upload.
+-q - Be quiet when uploading.
 -u Username - specify an alternate username than the one stored in config
 -k Api_Key - specify an alternate apikey.
 -a Auth_URL - specify an alternate auth server.
