@@ -192,19 +192,36 @@ function put_object {
     curl ${options} -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
     [[ $QUIET != "true" ]] && echo
 
-    PUBLIC_URL=$(container_public ${container})
+    PUBLIC_CNAME=$(container_cname ${container})
+
+    if [[ -n ${PUBLIC_CNAME} ]];then
+        public_url=${PUBLIC_CNAME}
+        [[ ${public_url} == http* ]] || public_url="http://${public_url}"
+    else
+        public_url=$(container_public ${container})
+    fi 
         
-    if [[ -n $PUBLIC_URL ]];then
-        short_url=$(shorten_url "${PUBLIC_URL}/$object")
-        echo "$short_url | ${PUBLIC_URL}/$object | $file"
-        [[ -x /usr/bin/xclip ]] && echo $short_url|xclip -selection clipboard
-        [[ -x /usr/bin/pbcopy ]] && echo $short_url|pbcopy
+    if [[ -n $public_url ]];then
+        nonencoded_object=${file##*/}
+        short_url=$(shorten_url "${public_url}/$object")
+        copy_url=${short_url}
+        if [[ -n ${PUBLIC_CNAME} ]];then
+            copy_url=${public_url}/${nonencoded_object}
+        fi
+        echo "$short_url | ${public_url}/$nonencoded_object | $file"
+        [[ -x /usr/bin/xclip ]] && echo $copy_url|xclip -selection clipboard
+        [[ -x /usr/bin/pbcopy ]] && echo $copy_url|pbcopy
     fi
 }
 
 function container_public {
     local cont=$@
     curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $CDNManagementUrl/$cont|grep "X-CDN-URI"|sed -e 's/\r$//;s/X-CDN-URI: //'|tr -d '\r'
+}
+
+function container_cname {
+    local cont=$@
+    curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $StorageUrl/$cont|grep "X-Container-Meta-Cname"|sed -e 's/\r$//;s/X-Container-Meta-Cname: //'|tr -d '\r'
 }
 
 function choose_container {
@@ -274,8 +291,19 @@ Options are :
 
 Config is inside ~/.config/rackspace-cloud/config.
 
-Example :
+=====================
+Public Header feature
+=====================
 
+If you have a header on the container with :
+
+X-Container-Meta-Cname: public.mydomain.com
+
+upcs will use that for your public link instead of the CDN URL.
+
+=======
+Example 
+=======
 # Force image/png as image of the file image.jpg to be uploaded in public
 # container
 upcs -C image/png -c public image.jpg
