@@ -36,23 +36,38 @@ For the first time running upcs will ask you for your API username and key and w
 
 Options::
 
-  upcs OPTIONS FILES1 FILE2...
+ upcs OPTIONS FILES1 FILE2...
 
-  Use curl on the backup to upload files to rackspace Cloud Files.
+ Use curl on the backup to upload files to rackspace Cloud Files.
 
-  Options are :
+ Options are :
 
-  -s - Use Servicenet to upload.
-  -u Username - specify an alternate username than the one stored in config
-  -k Api_Key - specify an alternate apikey.
-  -a Auth_URL - specify an alternate auth server.
-  -c Container - specify the container to upload.
-  -d - Use the last chosen container to upload.
-  -C Content/Type - force a specific a content-type for file(s) uploaded.
-  -m Container - create container.
+ -s - Use Servicenet to upload.
+ -u Username - specify an alternate username than the one stored in config
+ -k Api_Key - specify an alternate apikey.
+ -a Auth_URL - specify an alternate auth server.
+ -c Container - specify the container to upload.
+ -d - Use the last chosen container to upload.
+ -C Content/Type - force a specific a content-type for file(s) uploaded.
+ -m Container - create container.
 
-  Config is inside ~/.config/rackspace-cloud/config.
+ Config is inside ~/.config/rackspace-cloud/config.
 
+CNAME
+=====
+
+`upcs` has the ability to use a CNAME of your public containers instead of the CDN url.
+
+Let's say you have a CNAME set like this ::
+
+ c000.r00.cf0.rackcdn.com CNAME public.mydomain.com
+
+if you set the container header ::
+
+  X-Container-Meta-Cname: public.mydomain.com
+
+on your container header (see the API documentation for this) it will show you the public.mydomain.com instead of c000.r00.cf0.rackcdn.com for the public url.
+  
 LICENSE
 =======
 
