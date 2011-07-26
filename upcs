@@ -288,6 +288,7 @@ Options are :
 -d - Use the last chosen container to upload.
 -C Content/Type - force a specific a content-type for file(s) uploaded.
 -m Container - create a container.
+-x - set debug mode.
 
 Config is inside ~/.config/rackspace-cloud/config.
 
@@ -321,7 +322,7 @@ choose_default=
 content_type=
 create_container=
 
-while getopts ":c:dsu:k:a:C:qm:" opt; do
+while getopts ":c:dxsu:k:a:C:qm:" opt; do
   case $opt in
     q)
     QUIET=true
@@ -349,6 +350,9 @@ while getopts ":c:dsu:k:a:C:qm:" opt; do
     ;;
     m)
     create_container=$OPTARG
+    ;;
+    x)
+    set -x
     ;;
     h)
     help
