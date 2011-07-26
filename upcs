@@ -69,7 +69,7 @@ function check_api_key {
     local good_key=
     [[ -z ${AUTH_SERVER} ]] && AUTH_SERVER=${DEFAULT_AUTH_SERVER}
 
-    curl -s -f -D - \
+    curl -k -s -f -D - \
         -H "X-Auth-Key: ${RCLOUD_API_KEY}" \
         -H "X-Auth-User: ${RCLOUD_API_USER}" \
         ${AUTH_SERVER} >${temp_file} && good_key=1
@@ -189,7 +189,7 @@ function put_object {
     fi
 
     [[ $QUIET != "true" ]] && echo "Uploading ${file}"
-    curl ${options} -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
+    curl ${options} -k -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
     [[ $QUIET != "true" ]] && echo
 
     PUBLIC_CNAME=$(container_cname ${container})
