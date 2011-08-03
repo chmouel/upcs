@@ -1,7 +1,7 @@
 #!/bin/bash
 # Author: Chmouel Boudjnah <chmouel.boudjnah@rackspace.co.uk>
 # Not officially supported by Rackspace only as a best effort basis :)
-UPCS_VERSION=1.6
+UPCS_VERSION=1.7
 
 # Define yes to make it to copy to url to clipboard (via a shortened url
 # service) You need to have the software xclip installed in your system.
