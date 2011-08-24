@@ -205,7 +205,7 @@ function put_object {
         nonencoded_object=${file##*/}
         short_url=$(shorten_url "${public_url}/$object")
         copy_url=${short_url}
-        if [[ -n ${PUBLIC_CNAME} ]];then
+        if [[ -n ${PUBLIC_CNAME} && ${nonencoded_object} != *\ * ]];then
             copy_url=${public_url}/${nonencoded_object}
         fi
         echo "$short_url | ${public_url}/$nonencoded_object | $file"
@@ -417,30 +417,3 @@ for arg in $ARGS;do
     [[ -n ${tarname} ]] && rm -f ${tarname}
 done
 
-#TODO: Splitting
-#      some code snippet for splitting
-# CHUNK_SIZE=104857600
-# FILE=$HOME/bigfile
-
-# function split_it() {
-#     local size=$(stat -f '%z' $FILE)
-#     local lock=0
-#     local uploaded_size=0
-    
-#     while [[ ${lock} != 1 ]];do
-#         end=$(( $uploaded_size + $CHUNK_SIZE ))
-
-#         if [[ ${end} -ge ${size} ]];then
-#             end=${size}
-#         fi
-        
-#         echo "dd start=${uploaded_size} end=${end} bs=1"
-#         uploaded_size=$end
-
-#         if [[ ${size} == ${end} ]];then
-#             lock=1
-#         fi
-        
-#     done
-    
-# }
