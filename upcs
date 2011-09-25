@@ -161,12 +161,15 @@ function put_object {
     fi
     
     #MaxOSX
+    if file -I 2>&1 | grep -q "invalid option" ;then
+        local ctype=$(file -bi ${file});ctype=${ctype%%;*}
+    else
+        local ctype=$(file -bI ${file});ctype=${ctype%%;*}
+    fi
     if [[ -e /sbin/md5 ]];then
         local etag=$(md5 ${file});etag=${etag##* }
-        local ctype=$(file -bI ${file});ctype=${ctype%%;*}
     else
         local etag=$(md5sum ${file});etag=${etag%% *} #TODO progress
-        local ctype=$(file -bi ${file});ctype=${ctype%%;*}
     fi
     if [[ -z ${ctype} || ${ctype} == *corrupt* ]];then
         ctype="application/octet-stream"
@@ -389,7 +392,13 @@ SAVEIFS=$IFS
 IFS=$(echo -en "\n\b")
 for arg in $ARGS;do
     tarname=
-    file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' ${arg})
+
+    #MacOsX
+    if readlink -f 2>&1 | grep -q illegal;then
+        file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' ${arg})
+    else
+        file=$(readlink -f ${arg})
+    fi
     dest_name=
     
     [[ -e ${file} ]] || {
