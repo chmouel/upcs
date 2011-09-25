@@ -74,7 +74,8 @@ OpenStack-SWIFT
 If you want to upload to your custom swift installation. You can edit
 the variable ``AUTH_SERVER`` in ``~/.config/rackspace-cloud/config``
 to your swift install. This file get generated the first time you run
-upcs.
+upcs if you specify a URL starting by http:// instead of us or uk for
+auth server it will that to get tokens.
 
 LICENSE
 =======

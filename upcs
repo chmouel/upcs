@@ -47,6 +47,8 @@ function get_api_key {
     
     if [[ $LOCATION == "uk" || $LOCATION == "UK" ]];then
         AUTH_SERVER=$AUTH_SERVER_LON
+    elif [[ ${LOCATION} == http://** ]];then
+        AUTH_SERVER=${LOCATION}
     else 
         AUTH_SERVER=$AUTH_SERVER_US
     fi
