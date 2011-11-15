@@ -1,6 +1,6 @@
-======================================
-CLI to upload to Rackspace Cloud Files
-======================================
+================================
+CLI to upload to OpenStack Swift
+================================
 
 :Homepage:  https://github.com/chmouel/upcs
 :Credits:   Copyright 2011 Chmouel Boudjnah <chmouel@chmouel.com>
@@ -9,7 +9,7 @@ CLI to upload to Rackspace Cloud Files
 DESCRIPTION
 ===========
 
-upcs is a simple bash script that use curl on the back-end to upload files quickly to RackSpace Cloud Files.
+upcs is a simple bash script that use curl on the back-end to upload files quickly to OpenStack swift.
 
 If the container uploaded is a public container then it will give you the public link for easy sharing.
 
@@ -38,7 +38,7 @@ Options::
 
  upcs OPTIONS FILES1 FILE2...
 
- Use curl on the backup to upload files to rackspace Cloud Files.
+ Use curl on the backend to upload files to rackspace Cloud Files.
 
  Options are :
 
