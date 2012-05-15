@@ -68,14 +68,15 @@ if you set the container header ::
 
 on your container header (see the API documentation for this) it will show you the public.mydomain.com instead of c000.r00.cf0.rackcdn.com for the public url.
   
-OpenStack-SWIFT
-===============
+Configuration and OpenStack-Swift
+=================================
 
 If you want to upload to your custom swift installation. You can edit
 the variable ``AUTH_SERVER`` in ``~/.config/rackspace-cloud/config``
 to your swift install. This file get generated the first time you run
-upcs if you specify a URL starting by http:// instead of us or uk for
-auth server it will that to get tokens.
+upcs if you specify a URL starting by http:// instead of ```us``` or ```uk``` for
+auth server it will use that to get tokens. Same goes if you need to 
+update your API key you can easily do that by editing this file.
 
 LICENSE
 =======
