@@ -15,11 +15,8 @@ AUTH_SERVER_LON=https://lon.auth.api.rackspacecloud.com/v1.0
 AUTH_SERVER_US=https://auth.api.rackspacecloud.com/v1.0
 DEFAULT_AUTH_SERVER=${AUTH_SERVER_US}
 
-# Specify here something different than by default google
-# Choice are :
-# isgd  for http://is.gd
-# google for http://goo.gl (default)
-SHORT_URL_SERVICE="google"
+# Just isgd for now (google service is not working well)
+SHORT_URL_SERVICE="isgd"
 
 # Set it to true if you want to use servicenet to upload.
 SERVICENET=false
@@ -127,18 +124,7 @@ function create_container {
 
 function shorten_url() {
     url=$1
-
-    if [[ ${SHORT_URL_SERVICE} == isgd  ]];then
-        _surl=$(curl -s "http://is.gd/api.php?longurl=${url}")
-    else
-        api_key="AIzaSyDmzsxlzULxBpJJmg5wEUuPQY9g_afwcuk"
-        _surl=$(curl -s \
-            "https://www.googleapis.com/urlshortener/v1/url?key=${api_key}" \
-            -H 'Content-Type: application/json' \
-            -d "{\"longUrl\": \"${url}\"}" | sed -n '/id/ { s/.*: .//;s/".*//;p;q;}'
-            )
-    fi
-
+    _surl=$(curl -s "http://is.gd/api.php?longurl=${url}")
     if [[ -n ${_surl} ]];then
         echo ${_surl}|tr -d '\r'|tr -d '\n'
     fi
