@@ -50,6 +50,8 @@ Options::
  -d - Use the last chosen container to upload.
  -C Content/Type - force a specific a content-type for file(s) uploaded.
  -m Container - create container.
+ -z Segment_Size_MB - upload large files in given size segments, in MB (default: 5120 MB)
+ -x - set debug mode.
 
  Config is inside ~/.config/rackspace-cloud/config.
 
@@ -112,3 +114,8 @@ Author
 ======
 
 Chmouel Boudjnah <chmouel@chmouel.com>
+
+Contributor
+===========
+
+Rick Harris <rconradharris@gmail.com>
