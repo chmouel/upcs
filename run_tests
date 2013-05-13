@@ -1,0 +1,200 @@
+#!/bin/bash
+# Author: Rick Harris <rconradharris@gmail.com>
+
+RCLOUD_API_USER=
+RCLOUD_API_KEY=
+AUTH_SERVER=https://auth.api.rackspacecloud.com/v1.0
+TEST_CONTAINER=test
+
+TEST_DIR=.testdir
+UPCS="env RCLOUD_API_USER=${RCLOUD_API_USER} RCLOUD_API_KEY=${RCLOUD_API_KEY} AUTH_SERVER=${AUTH_SERVER} ./upcs -q -c ${TEST_CONTAINER}"
+let FAILURES=0
+DEFAULT_AUTH_SERVER=https://auth.api.rackspacecloud.com/v1.0
+SERVICENET=false
+
+function delete_object() {
+    local container=$1
+    local object=$2
+    curl -f -X DELETE -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object} 2> /dev/null
+}
+
+function delete_container() {
+    local container=$1
+    curl -f -X DELETE -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container} 2> /dev/null
+}
+
+function clear_container() {
+    local container=$1
+    local exists=false
+
+    local _objects=$(curl -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container} 2> /dev/null) && exists=true
+
+    if [[ ${exists} == true ]];then
+        for _object in ${_objects}; do
+            delete_object ${container} ${_object}
+        done
+    fi
+}
+
+function create_container {
+    local container=$1
+    curl -o/dev/null -s -f -k -X PUT \
+        -H "X-Auth-Token: ${StorageToken}" \
+        ${StorageUrl}/${container} 2> /dev/null
+}
+
+
+function clear_test_state() {
+    rm -rf ${TEST_DIR}
+    clear_container ${TEST_CONTAINER}
+    delete_container ${TEST_CONTAINER}
+}
+
+function setup() {
+    clear_test_state
+
+    mkdir ${TEST_DIR}
+    create_container ${TEST_CONTAINER}
+    echo -n $1
+    TEST_SUCCESS=true
+}
+
+function teardown() {
+    clear_test_state
+    if [[ ${TEST_SUCCESS} == true ]];then
+        echo -e '\t\t\t[OK]'
+    else
+        echo -e '\t\t\t[FAIL]'
+        let FAILURES++
+    fi
+}
+
+function check_api_key {
+    temp_file=$(mktemp /tmp/.rackspace-cloud.XXXXXX)
+    local good_key=
+    [[ -z ${AUTH_SERVER} ]] && AUTH_SERVER=${DEFAULT_AUTH_SERVER}
+
+    curl -k -s -f -D - \
+        -H "X-Auth-Key: ${RCLOUD_API_KEY}" \
+        -H "X-Auth-User: ${RCLOUD_API_USER}" \
+        ${AUTH_SERVER} >${temp_file} && good_key=1
+
+    if [[ -z $good_key ]];then
+        msg "You have a bad username or api/key." "Bad Username/API Key" 200 25
+        exit 1;
+    fi
+
+    while read line;do
+        [[ $line != X-* ]] && continue
+        line=${line#X-}
+        key=${line%: *};key=${key//-/}
+        value=${line#*: }
+        value=$(echo ${value}|tr -d '\r')
+        eval "export $key=$value"
+    done < ${temp_file}
+
+    if [[ -z ${StorageUrl} ]];then
+        echo "Invalid auth url."
+        exit 1
+    fi
+
+
+    if [[ ${SERVICENET} == true || ${SERVICENET} == True || ${SERVICENET} == TRUE ]];then
+        StorageUrl=${StorageUrl/https:\/\//https://snet-}
+        StorageUrl=${StorageUrl/http:\/\//http://snet-}
+    fi
+
+    rm -f ${temp_file}
+}
+
+function fail() {
+    TEST_SUCCESS=false
+    FAILURE_MSGS=("${FAILURE_MSGS[@]}" "$1")
+}
+
+function assert_ints_equal() {
+    if [[ $1 -ne $2 ]];then
+        fail "Integers not equal: $1 != $2"
+    fi
+}
+
+function assert_strings_same() {
+    if [[ $1 != $2 ]];then
+        fail "Strings not same: $1 != $2"
+    fi
+}
+
+function md5_file() {
+    local file=$1
+    if [[ -e /sbin/md5 ]];then
+        local etag=$(md5 ${file});etag=${etag##* }
+    else
+        local etag=$(md5sum ${file});etag=${etag%% *} #TODO progress
+    fi
+    echo "${etag}"
+}
+
+function suite_init() {
+    check_api_key
+}
+
+function suite_finished() {
+    echo
+    if [[ ${FAILURES} -eq 0 ]];then
+        echo All tests passed
+        exit 0
+    else
+        echo "(${FAILURES}) Failure(s)"
+        for msg in "${FAILURE_MSGS[@]}";do
+            echo $msg
+        done
+        exit 1
+    fi
+}
+
+function get_object() {
+    local container=$1
+    local object=$2
+    curl -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object} 2> /dev/null
+}
+
+function test_small_file() {
+    setup "test_small_file"
+
+    local put_file=${TEST_DIR}/smallfile
+    dd if=/dev/urandom of=${put_file} bs=512 count=10 2> /dev/null
+
+    ${UPCS} ${put_file} 2> /dev/null
+    assert_ints_equal $? 0
+
+    local get_file=${TEST_DIR}/get-smallfile
+    get_object ${TEST_CONTAINER} smallfile > ${get_file}
+    assert_strings_same `md5_file ${put_file}` `md5_file ${get_file}`
+
+    teardown
+}
+
+function test_large_file() {
+    setup "test_large_file"
+
+    local object=largefile
+    local put_file=${TEST_DIR}/${object}
+    dd if=/dev/urandom of=${put_file} bs=1M count=5 2> /dev/null
+    ${UPCS} -z 1 ${put_file} 2> /dev/null
+    assert_ints_equal $? 0
+
+    local get_file=${TEST_DIR}/get-${object}
+    get_object ${TEST_CONTAINER} ${object} > ${get_file}
+    assert_ints_equal `stat -c%s ${put_file}` `stat -c%s ${get_file}`
+    assert_strings_same `md5_file ${put_file}` `md5_file ${get_file}`
+
+    clear_container ${object}_segments
+    delete_container ${object}_segments
+
+    teardown
+}
+
+suite_init
+test_small_file
+test_large_file
+suite_finished

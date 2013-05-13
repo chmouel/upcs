@@ -1,7 +1,7 @@
 #!/bin/bash
 # Author: Chmouel Boudjnah <chmouel.boudjnah@rackspace.co.uk>
 # Not officially supported by Rackspace only as a best effort basis :)
-UPCS_VERSION=1.8
+UPCS_VERSION=1.9
 
 # Define yes to make it to copy to url to clipboard (via a shortened url
 # service) You need to have the software xclip installed in your system.
@@ -23,6 +23,8 @@ SERVICENET=false
 
 # Make it quiet or not
 QUIET=false
+
+SEGMENT_SIZE_MB=5120 # 5 GB
 
 function ask_question {
     question=$1
@@ -118,7 +120,7 @@ function create_container {
         msg "Cannot create container name ${container}" "Cannot create container" 200 25
         return 1;
     else
-        echo "container ${container} has been created"
+        [[ $QUIET != "true" ]] && echo "container ${container} has been created" || true
     fi
 }
 
@@ -128,6 +130,88 @@ function shorten_url() {
     if [[ -n ${_surl} ]];then
         echo ${_surl}|tr -d '\r'|tr -d '\n'
     fi
+}
+
+function put_small_object() {
+    local file=$1
+    local container=$2
+    local object=$3
+    local ctype=$4
+    local size=$5
+    local options=$6
+
+    if [[ -e /sbin/md5 ]];then
+        local etag=$(md5 ${file});etag=${etag##* }
+    else
+        local etag=$(md5sum ${file});etag=${etag%% *} #TODO progress
+    fi
+
+    [[ $QUIET != "true" ]] && echo "Uploading ${file}"
+
+    curl ${options} -k -o/dev/null -f -X PUT -T ${file} \
+        -H "ETag: ${etag}" \
+        -H "Content-type: ${ctype}" \
+        -H "X-Auth-Token: ${StorageToken}" \
+        ${StorageUrl}/${container}/${object}
+
+    [[ $QUIET != "true" ]] && echo || true
+}
+
+function put_large_object() {
+    local file=$1
+    local container=$2
+    local object=$3
+    local ctype=$4
+    local size=$5
+    local options=$6
+
+    local block_size=1024
+    local left=${size}
+    local segment_num=1
+    local skip=0
+
+    local segments_container=${object}_segments
+    local obj_prefix="${segments_container}/${object}/$(date +%s)/${size}/"
+
+    create_container  ${segments_container}
+
+    let segment_bytes=${SEGMENT_SIZE_MB}*1024*1024
+
+    while [[ ${left} -gt 0 ]];do
+        if [[ ${left} -ge ${segment_bytes} ]];then
+            local length=${segment_bytes}
+        else
+            local length=${left}
+        fi
+
+        let nblocks=${length}/${block_size}
+        let reminader=${length}%${block_size} || true
+        [[ ${remainder} -gt 0 ]] && let nblocks++
+
+        [[ $QUIET != "true" ]] && echo "Uploading segment ${segment_num} for ${file}"
+
+        dd if=${file} bs=${block_size} count=${nblocks} skip=${skip} | \
+            curl ${options} -T - -k -o/dev/null -f -X PUT \
+            -H "Transfer-Encoding: chunked" \
+            -H "Content-Type: ${ctype}" \
+            -H "X-Auth-Token: ${StorageToken}" \
+            ${StorageUrl}/${obj_prefix}$(printf "%08d" ${segment_num})
+
+        [[ $QUIET != "true" ]] && echo || true
+
+        # NOTE: || true is needed here because let=0 returns non-zero,
+        # which with set -e, would cause the script to exit immediately
+        let left-=${length} || true
+        let skip+=${nblocks}
+        let segment_num++
+    done
+
+    [[ $QUIET != "true" ]] && echo "Uploading manifest for ${file}"
+    curl ${options} --data-binary '' -k -o/dev/null -f -X PUT \
+        -H "Content-type: ${ctype}" \
+        -H "X-Auth-Token: ${StorageToken}" \
+        -H "X-Object-Manifest: ${obj_prefix}" \
+        ${StorageUrl}/${container}/${object}
 }
 
 function put_object {
@@ -154,11 +238,6 @@ function put_object {
     else
         local ctype=$(file -bI ${file});ctype=${ctype%%;*}
     fi
-    if [[ -e /sbin/md5 ]];then
-        local etag=$(md5 ${file});etag=${etag##* }
-    else
-        local etag=$(md5sum ${file});etag=${etag%% *} #TODO progress
-    fi
     if [[ -z ${ctype} || ${ctype} == *corrupt* ]];then
         ctype="application/octet-stream"
     fi
@@ -167,8 +246,6 @@ function put_object {
         ctype=${content_type}
     fi
     
-    uploaded=
-
     options=""
     if [[ $QUIET == "true" ]];then
         options="-s"
@@ -179,9 +256,12 @@ function put_object {
         container=${container%%/*}
     fi
 
-    [[ $QUIET != "true" ]] && echo "Uploading ${file}"
-    curl ${options} -k -o/dev/null -f -X PUT -T ${file} -H "ETag: ${etag}" -H "Content-type: ${ctype}" -H "X-Auth-Token: ${StorageToken}" ${StorageUrl}/${container}/${object}
-    [[ $QUIET != "true" ]] && echo
+    local size=`stat -c%s ${file}`
+    if [[ ${size} -gt ${SEGMENT_SIZE_MB}*1024*1024 ]];then
+        put_large_object $file $container $object $ctype $size $options
+    else
+        put_small_object $file $container $object $ctype $size $options
+    fi
 
     PUBLIC_CNAME=$(container_cname ${container})
 
@@ -279,6 +359,7 @@ Options are :
 -d - Use the last chosen container to upload.
 -C Content/Type - force a specific a content-type for file(s) uploaded.
 -m Container - create a container.
+-z Segment_Size_MB - upload large files in given size segments, in MB (default: 5120 MB)
 -x - set debug mode.
 
 Config is inside ~/.config/rackspace-cloud/config.
@@ -300,6 +381,10 @@ Example
 # container
 upcs -C image/png -c public image.jpg
 
+# Extremely large files will be split into segments, by default 5GB in size.
+# You can overide the default segment size by using the -z option.
+upcs -z 100 -c public hugefile.mp4
+
 VERSION: ${UPCS_VERSION}
 
 EOF
@@ -313,7 +398,7 @@ choose_default=
 content_type=
 create_container=
 
-while getopts ":c:dxsu:k:a:C:qm:" opt; do
+while getopts ":c:dxsu:k:a:C:qm:z:" opt; do
   case $opt in
     q)
     QUIET=true
@@ -341,6 +426,9 @@ while getopts ":c:dxsu:k:a:C:qm:" opt; do
     ;;
     m)
     create_container=$OPTARG
+    ;;
+    z)
+    SEGMENT_SIZE_MB=$OPTARG
     ;;
     x)
     set -x
@@ -413,4 +501,4 @@ for arg in $ARGS;do
     put_object ${container} ${file} ${dest_name}
     [[ -n ${tarname} ]] && rm -f ${tarname}
 done
-
+exit 0
