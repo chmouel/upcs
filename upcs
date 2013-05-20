@@ -38,18 +38,25 @@ function msg {
 
 
 function get_api_key {
-    RCLOUD_API_USER=$(ask_question "Rackspace Cloud Username" "Enter Username"  200 50)
+    RCLOUD_API_USER=$(ask_question "Username or Tenant:Username)" "Enter Username"  200 50)
     [[ -z $RCLOUD_API_USER ]] && exit 1 #press cancel
-    RCLOUD_API_KEY=$(ask_question "Rackspace Cloud API Key" "Enter API Key"  200 50)
+    RCLOUD_API_KEY=$(ask_question "Password" "Enter API Key"  200 50)
 
-    LOCATION=$(ask_question "Location US/UK (default: US)" "Enter Location" 200 50)
-    
+    LOCATION=$(ask_question "Auth URL 'US' or 'UK' for RAX CF US/UK (default: US)" "Enter Location" 200 50)
+
     if [[ $LOCATION == "uk" || $LOCATION == "UK" ]];then
         AUTH_SERVER=$AUTH_SERVER_LON
     elif [[ ${LOCATION} == http://** ]];then
+        OPENSTACK=yes
         AUTH_SERVER=${LOCATION}
-    else 
+    else
         AUTH_SERVER=$AUTH_SERVER_US
+    fi
+
+    if [[ -n ${OPENSTACK} ]];then
+        AUTH_VERSION=$(ask_question "Auth Version 1/2 (default: 1)" ""  200 50)
+        [[ -z ${AUTH_VERSION} ]] && AUTH_VERSION=1
+        [[ $AUTH_VERSION == 2* ]] && AUTH_VERSION=2
     fi
 
     [[ -n ${RCLOUD_API_KEY} && -n ${RCLOUD_API_USER} ]] || {
@@ -61,6 +68,7 @@ function get_api_key {
     chmod 700 ${HOME}/.config/rackspace-cloud
     echo "RCLOUD_API_USER=${RCLOUD_API_USER}" > ${HOME}/.config/rackspace-cloud/config
     echo "RCLOUD_API_KEY=${RCLOUD_API_KEY}" >> ${HOME}/.config/rackspace-cloud/config
+    echo "AUTH_VERSION=${AUTH_VERSION}" >> ${HOME}/.config/rackspace-cloud/config
     echo "AUTH_SERVER=${AUTH_SERVER}" >> ${HOME}/.config/rackspace-cloud/config
 		chmod 600 ${HOME}/.config/rackspace-cloud/config
 }
@@ -70,31 +78,40 @@ function check_api_key {
     local good_key=
     [[ -z ${AUTH_SERVER} ]] && AUTH_SERVER=${DEFAULT_AUTH_SERVER}
 
-    curl -k -s -f -D - \
-        -H "X-Auth-Key: ${RCLOUD_API_KEY}" \
-        -H "X-Auth-User: ${RCLOUD_API_USER}" \
-        ${AUTH_SERVER} >${temp_file} && good_key=1
+    if [[ ${AUTH_VERSION} == 1 ]];then
+        curl -k -s -f -D - \
+            -H "X-Auth-Key: ${RCLOUD_API_KEY}" \
+            -H "X-Auth-User: ${RCLOUD_API_USER}" \
+            ${AUTH_SERVER} >${temp_file} && good_key=1
+    else
+        USER=${RCLOUD_API_USER#*:}
+        TENANT=${RCLOUD_API_USER%:*}
+        curl -s -d "{\"auth\": {\"tenantName\": \"${TENANT}\", \"passwordCredentials\": {\"username\": \"${USER}\", \"password\": \"${RCLOUD_API_KEY}\"}}}" -H 'Content-type: application/json' ${AUTH_SERVER}/tokens >${temp_file} && good_key=1
+    fi
 
     if [[ -z $good_key ]];then
         msg "You have a bad username or api/key." "Bad Username/API Key" 200 25
         exit 1;
     fi
 
-    while read line;do
-        [[ $line != X-* ]] && continue
-        line=${line#X-}
-        key=${line%: *};key=${key//-/}
-        value=${line#*: }
-        value=$(echo ${value}|tr -d '\r')
-        eval "export $key=$value"
-    done < ${temp_file}
+    if [[ ${AUTH_VERSION} == 1 ]];then
+        while read line;do
+            [[ $line != X-* ]] && continue
+            line=${line#X-}
+            key=${line%: *};key=${key//-/}
+            value=${line#*: }
+            value=$(echo ${value}|tr -d '\r')
+            eval "export $key=$value"
+        done < ${temp_file}
+    else
+        eval $(cat ${temp_file}|python -c "import json, sys;json = json.loads(sys.stdin.read());print \"export AuthToken='%s'\nexport StorageUrl='%s'\" % (json['access']['token']['id'], [ i['endpoints'][0]['publicURL'] for i in json['access']['serviceCatalog'] if i['type'] == 'object-store' ][0])")
+    fi
 
-    if [[ -z ${StorageUrl} ]];then
+    if [[ -z ${StorageUrl} || -z ${AuthToken} ]];then
         echo "Invalid auth url."
         exit 1
     fi
 
-    
     if [[ ${SERVICENET} == true || ${SERVICENET} == True || ${SERVICENET} == TRUE ]];then
         StorageUrl=${StorageUrl/https:\/\//https://snet-}
         StorageUrl=${StorageUrl/http:\/\//http://snet-}
@@ -151,7 +168,7 @@ function put_small_object() {
     curl ${options} -k -o/dev/null -f -X PUT -T ${file} \
         -H "ETag: ${etag}" \
         -H "Content-type: ${ctype}" \
-        -H "X-Auth-Token: ${StorageToken}" \
+        -H "X-Auth-Token: ${AuthToken}" \
         ${StorageUrl}/${container}/${object}
 
     [[ $QUIET != "true" ]] && echo || true
@@ -226,12 +243,12 @@ function put_object {
     object=$(basename ${object})
     #url encode in sed yeah i am not insane i have googled that
     object=$(echo $object|sed -e 's/%/%25/g;s/ /%20/g;s/ /%09/g;s/!/%21/g;s/"/%22/g;s/#/%23/g;s/\$/%24/g;s/\&/%26/g;s/'\''/%27/g;s/(/%28/g;s/)/%29/g;s/\*/%2a/g;s/+/%2b/g; s/,/%2c/g; s/-/%2d/g; s/\./%2e/g; s/:/%3a/g; s/;/%3b/g; s//%3e/g; s/?/%3f/g; s/@/%40/g; s/\[/%5b/g; s/\\/%5c/g; s/\]/%5d/g; s/\^/%5e/g; s/_/%5f/g; s/`/%60/g; s/{/%7b/g; s/|/%7c/g; s/}/%7d/g; s/~/%7e/g; s/      /%09/g;')
-    
+
     if [[ ! -e ${file} ]];then
         msg "Cannot find file ${file}" "Cannot find file" 200 25
         exit 1
     fi
-    
+
     #MaxOSX
     if file -I 2>&1 | grep -q "invalid option" ;then
         local ctype=$(file -bi ${file});ctype=${ctype%%;*}
@@ -241,11 +258,11 @@ function put_object {
     if [[ -z ${ctype} || ${ctype} == *corrupt* ]];then
         ctype="application/octet-stream"
     fi
-    
+
     if [[ -n ${content_type} ]];then
         ctype=${content_type}
     fi
-    
+
     options=""
     if [[ $QUIET == "true" ]];then
         options="-s"
@@ -258,7 +275,7 @@ function put_object {
 
     # MacOSX
     if stat -c 2>&1 | grep -q illegal;then
-       size=$(stat -f%z ${file})        
+       size=$(stat -f%z ${file})
     else
        size=$(stat -c%s ${file})
     fi
@@ -271,13 +288,13 @@ function put_object {
 
     PUBLIC_CNAME=$(container_cname ${container})
 
-    if [[ -n ${PUBLIC_CNAME} ]];then
+    if [[ ${AUTH_VERSION} == 1 && -n ${PUBLIC_CNAME} ]];then
         public_url=${PUBLIC_CNAME}
         [[ ${public_url} == http* ]] || public_url="http://${public_url}"
     else
         public_url=$(container_public ${container})
-    fi 
-        
+    fi
+
     if [[ -n $public_url ]];then
         nonencoded_object=${file##*/}
         short_url=$(shorten_url "${public_url}/$object")
@@ -293,16 +310,22 @@ function put_object {
 
 function container_public {
     local cont=$@
-    curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $CDNManagementUrl/$cont|grep "X-CDN-URI"|sed -e 's/\r$//;s/X-CDN-URI: //'|tr -d '\r'
+    if [[ ${AUTH_VERSION} == 1 ]];then
+        curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $CDNManagementUrl/$cont|grep "X-CDN-URI"|sed -e 's/\r$//;s/X-CDN-URI: //'|tr -d '\r'
+    else
+        curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $StorageUrl/$cont|grep -q 'X-Container-Read:.*\.r:\*' && echo $StorageUrl/$cont
+    fi
 }
 
 function container_cname {
     local cont=$@
-    curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $StorageUrl/$cont|grep "X-Container-Meta-Cname"|sed -e 's/\r$//;s/X-Container-Meta-Cname: //'|tr -d '\r'
+    if [[ ${AUTH_VERSION} == 1 ]];then
+        curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $StorageUrl/$cont|grep "X-Container-Meta-Cname"|sed -e 's/\r$//;s/X-Container-Meta-Cname: //'|tr -d '\r'
+    fi
 }
 
 function choose_container {
-    local lastcontainer args 
+    local lastcontainer args
 
     if [[ -e ${HOME}/.config/rackspace-cloud/last-container ]];then
         lastcontainer=$(cat ${HOME}/.config/rackspace-cloud/last-container)
@@ -311,13 +334,13 @@ function choose_container {
     if [[ -n ${choose_default} ]];then
         echo ${lastcontainer}
         return
-    fi  
-    
+    fi
+
     CONTAINERS_LIST=$(curl -s -f -k -X GET \
         -H "X-Auth-Token: ${AuthToken}" \
         ${StorageUrl}|sort -n
     )
-    
+
     for cont in ${CONTAINERS_LIST};do
         v=FALSE
         skip=
@@ -342,7 +365,7 @@ function choose_container {
     done
 
     [[ -z ${container} ]] && return
-    
+
     mkdir -p ${HOME}/.config/rackspace-cloud
     echo ${container} > ${HOME}/.config/rackspace-cloud/last-container
     echo $container
@@ -381,7 +404,7 @@ X-Container-Meta-Cname: public.mydomain.com
 upcs will use that for your public link instead of the CDN URL.
 
 =======
-Example 
+Example
 =======
 # Force image/png as image of the file image.jpg to be uploaded in public
 # container
@@ -482,7 +505,7 @@ for arg in $ARGS;do
         file=$(readlink -f ${arg})
     fi
     dest_name=
-    
+
     [[ -e ${file} ]] || {
         echo "$file does not seem to exist."
         continue
