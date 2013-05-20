@@ -256,7 +256,13 @@ function put_object {
         container=${container%%/*}
     fi
 
-    local size=`stat -c%s ${file}`
+    # MacOSX
+    if stat -c 2>&1 | grep -q illegal;then
+       size=$(stat -f%z ${file})        
+    else
+       size=$(stat -c%s ${file})
+    fi
+
     if [[ ${size} -gt ${SEGMENT_SIZE_MB}*1024*1024 ]];then
         put_large_object $file $container $object $ctype $size $options
     else
