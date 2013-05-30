@@ -14,6 +14,7 @@ CONTAINERS_TO_IGNORE=".CDN_ACCESS_LOGS"
 AUTH_SERVER_LON=https://lon.auth.api.rackspacecloud.com/v1.0
 AUTH_SERVER_US=https://auth.api.rackspacecloud.com/v1.0
 DEFAULT_AUTH_SERVER=${AUTH_SERVER_US}
+DEFAULT_AUTH_VERSION=1
 
 # Just isgd for now (google service is not working well)
 SHORT_URL_SERVICE="isgd"
@@ -46,17 +47,15 @@ function get_api_key {
 
     if [[ $LOCATION == "uk" || $LOCATION == "UK" ]];then
         AUTH_SERVER=$AUTH_SERVER_LON
+        AUTH_VERSION=${DEFAULT_AUTH_VERSION}
     elif [[ ${LOCATION} == http://** ]];then
-        OPENSTACK=yes
         AUTH_SERVER=${LOCATION}
-    else
-        AUTH_SERVER=$AUTH_SERVER_US
-    fi
-
-    if [[ -n ${OPENSTACK} ]];then
         AUTH_VERSION=$(ask_question "Auth Version 1/2 (default: 1)" ""  200 50)
         [[ -z ${AUTH_VERSION} ]] && AUTH_VERSION=1
         [[ $AUTH_VERSION == 2* ]] && AUTH_VERSION=2
+    else
+        AUTH_SERVER=$AUTH_SERVER_US
+        AUTH_VERSION=${DEFAULT_AUTH_VERSION}
     fi
 
     [[ -n ${RCLOUD_API_KEY} && -n ${RCLOUD_API_USER} ]] || {
