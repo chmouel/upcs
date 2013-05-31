@@ -1,9 +1,11 @@
 #!/bin/bash
 # Author: Rick Harris <rconradharris@gmail.com>
 
-RCLOUD_API_USER=
-RCLOUD_API_KEY=
-AUTH_SERVER=https://auth.api.rackspacecloud.com/v1.0
+if [[ -z ${RCLOUD_API_USER} || -z ${RCLOUD_API_KEY} ]]; then
+    echo "ERROR: Set RCLOUD_API_USER and RCLOUD_API_KEY environment variables before running."
+    exit 1
+fi
+
 TEST_CONTAINER=test
 
 TEST_DIR=.testdir
