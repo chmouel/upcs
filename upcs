@@ -155,6 +155,7 @@ function put_small_object() {
     local ctype=$4
     local size=$5
     local options=$6
+    local ttl=$7
 
     if [[ -e /sbin/md5 ]];then
         local etag=$(md5 ${file});etag=${etag##* }
@@ -168,6 +169,7 @@ function put_small_object() {
         -H "ETag: ${etag}" \
         -H "Content-type: ${ctype}" \
         -H "X-Auth-Token: ${AuthToken}" \
+        -H "X-Delete-After: ${ttl}" \
         ${StorageUrl}/${container}/${object}
 
     [[ $QUIET != "true" ]] && echo || true
@@ -180,6 +182,7 @@ function put_large_object() {
     local ctype=$4
     local size=$5
     local options=$6
+    local ttl=$7
 
     local block_size=1024
     local left=${size}
@@ -211,6 +214,7 @@ function put_large_object() {
             -H "Transfer-Encoding: chunked" \
             -H "Content-Type: ${ctype}" \
             -H "X-Auth-Token: ${StorageToken}" \
+            -H "X-Delete-After: ${ttl}" \
             ${StorageUrl}/${obj_prefix}$(printf "%08d" ${segment_num})
 
         [[ $QUIET != "true" ]] && echo || true
@@ -280,9 +284,9 @@ function put_object {
     fi
 
     if [[ ${size} -gt ${SEGMENT_SIZE_MB}*1024*1024 ]];then
-        put_large_object $file $container $object $ctype $size $options
+        put_large_object $file $container $object $ctype $size $options $ttl
     else
-        put_small_object $file $container $object $ctype $size $options
+        put_small_object $file $container $object $ctype $size $options $ttl
     fi
 
     PUBLIC_CNAME=$(container_cname ${container})
@@ -388,6 +392,7 @@ Options are :
 -C Content/Type - force a specific a content-type for file(s) uploaded.
 -m Container - create a container.
 -z Segment_Size_MB - upload large files in given size segments, in MB (default: 5120 MB)
+-t Delete the object after X seconds (default: never)
 -x - set debug mode.
 
 Config is inside ~/.config/rackspace-cloud/config.
@@ -426,7 +431,7 @@ choose_default=
 content_type=
 create_container=
 
-while getopts ":c:dxsu:k:a:C:qm:z:" opt; do
+while getopts ":c:dxsu:k:a:C:qm:z:t:" opt; do
   case $opt in
     q)
     QUIET=true
@@ -457,6 +462,9 @@ while getopts ":c:dxsu:k:a:C:qm:z:" opt; do
     ;;
     z)
     SEGMENT_SIZE_MB=$OPTARG
+    ;;
+    t)
+    ttl=$OPTARG
     ;;
     x)
     set -x
