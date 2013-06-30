@@ -9,7 +9,7 @@ CLI to upload to OpenStack Swift
 DESCRIPTION
 ===========
 
-upcs is a simple bash script that use curl on the back-end to upload files quickly to OpenStack swift.
+upcs is a simple bash script that use curl on the back-end to upload files quickly to OpenStack swift (v1 & v2 support).
 
 If the container uploaded is a public container then it will give you the public link for easy sharing.
 
