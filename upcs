@@ -157,6 +157,9 @@ function put_small_object() {
     local options=$6
     local ttl=$7
 
+    [[ ${options} == "null" ]] && options=""
+    [[ ${ttl} == "null" ]] && ttl=""
+
     if [[ -e /sbin/md5 ]];then
         local etag=$(md5 ${file});etag=${etag##* }
     else
@@ -172,6 +175,7 @@ function put_small_object() {
         -H "X-Delete-After: ${ttl}" \
         ${StorageUrl}/${container}/${object}
 
+    exit
     [[ $QUIET != "true" ]] && echo || true
 }
 
@@ -266,7 +270,7 @@ function put_object {
         ctype=${content_type}
     fi
 
-    options=""
+    options="null"
     if [[ $QUIET == "true" ]];then
         options="-s"
     fi
@@ -291,7 +295,7 @@ function put_object {
 
     PUBLIC_CNAME=$(container_cname ${container})
 
-    if [[ ${AUTH_VERSION} == 1 && -n ${PUBLIC_CNAME} ]];then
+    if [[ -n ${PUBLIC_CNAME} ]];then
         public_url=${PUBLIC_CNAME}
         [[ ${public_url} == http* ]] || public_url="http://${public_url}"
     else
@@ -322,9 +326,7 @@ function container_public {
 
 function container_cname {
     local cont=$@
-    if [[ ${AUTH_VERSION} == 1 ]];then
-        curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $StorageUrl/$cont|grep "X-Container-Meta-Cname"|sed -e 's/\r$//;s/X-Container-Meta-Cname: //'|tr -d '\r'
-    fi
+    curl -s -f -k -I -H "X-Auth-Token: ${AuthToken}" $StorageUrl/$cont|grep "X-Container-Meta-Cname"|sed -e 's/\r$//;s/X-Container-Meta-Cname: //'|tr -d '\r'
 }
 
 function choose_container {
@@ -392,7 +394,7 @@ Options are :
 -C Content/Type - force a specific a content-type for file(s) uploaded.
 -m Container - create a container.
 -z Segment_Size_MB - upload large files in given size segments, in MB (default: 5120 MB)
--t Delete the object after X seconds (default: never)
+-t Expired Time - Delete the object after X seconds (default: never)
 -x - set debug mode.
 
 Config is inside ~/.config/rackspace-cloud/config.
@@ -430,6 +432,7 @@ set -e
 choose_default=
 content_type=
 create_container=
+ttl=null
 
 while getopts ":c:dxsu:k:a:C:qm:z:t:" opt; do
   case $opt in
