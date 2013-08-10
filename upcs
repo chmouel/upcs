@@ -175,7 +175,6 @@ function put_small_object() {
         -H "X-Delete-After: ${ttl}" \
         ${StorageUrl}/${container}/${object}
 
-    exit
     [[ $QUIET != "true" ]] && echo || true
 }
 
