@@ -195,6 +195,9 @@ function put_large_object() {
     local segments_container=${object}_segments
     local obj_prefix="${segments_container}/${object}/$(date +%s)/${size}/"
 
+    [[ ${options} == "null" ]] && options=""
+    [[ ${ttl} == "null" ]] && ttl=""
+    
     create_container  ${segments_container}
 
     let segment_bytes=${SEGMENT_SIZE_MB}*1024*1024
