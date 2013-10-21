@@ -103,7 +103,7 @@ function check_api_key {
             eval "export $key=$value"
         done < ${temp_file}
     else
-        eval $(cat ${temp_file}|python -c "import json, sys;json = json.loads(sys.stdin.read());print \"export AuthToken='%s'\nexport StorageUrl='%s'\" % (json['access']['token']['id'], [ i['endpoints'][0]['publicURL'] for i in json['access']['serviceCatalog'] if i['type'] == 'object-store' ][0])")
+        eval $(cat ${temp_file}|python -c "import json, sys;json = json.loads(sys.stdin.read());print(\"export AuthToken='%s'\nexport StorageUrl='%s'\" % (json['access']['token']['id'], [ i['endpoints'][0]['publicURL'] for i in json['access']['serviceCatalog'] if i['type'] == 'object-store' ][0]))")
     fi
 
     if [[ -z ${StorageUrl} || -z ${AuthToken} ]];then
@@ -242,7 +242,7 @@ function put_large_object() {
 
 function put_object {
     local container=$1
-    local file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' $2)
+    local file=$(python -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' $2)
     local dest_name=$3
     if [[ -n $3 ]];then
         object=$3
@@ -512,7 +512,7 @@ for arg in $ARGS;do
 
     #MacOsX
     if readlink -f 2>&1 | grep -q illegal;then
-        file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' ${arg})
+        file=$(python -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' ${arg})
     else
         file=$(readlink -f ${arg})
     fi
