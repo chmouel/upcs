@@ -436,7 +436,7 @@ content_type=
 create_container=
 ttl=null
 
-while getopts ":c:dxsu:k:a:C:qm:z:t:" opt; do
+while getopts ":c:dxsu:k:a:C:qm:z:t:h" opt; do
   case $opt in
     q)
     QUIET=true
