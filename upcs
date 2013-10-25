@@ -380,7 +380,7 @@ function choose_container {
 
 function help() {
 cat<<EOF
-upcs OPTIONS FILES1 FILE2...
+${0##*/} OPTIONS FILES1 FILE2...
 
 Use curl on the backup to upload files to rackspace Cloud Files.
 
@@ -436,7 +436,7 @@ content_type=
 create_container=
 ttl=null
 
-while getopts ":c:dxsu:k:a:C:qm:z:t:" opt; do
+while getopts ":c:dxsu:k:a:C:qm:z:t:h" opt; do
   case $opt in
     q)
     QUIET=true
