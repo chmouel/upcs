@@ -3,8 +3,8 @@ CLI to upload to OpenStack Swift
 ================================
 
 :Homepage:  https://github.com/chmouel/upcs
-:Credits:   Copyright 2011 Chmouel Boudjnah <chmouel@chmouel.com>
-:Licence:   MIT
+:Credits:   Chmouel Boudjnah <chmouel@chmouel.com>
+:Licence:   BSD
 
 DESCRIPTION
 ===========
