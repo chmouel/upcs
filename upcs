@@ -310,7 +310,7 @@ function put_object {
         fi
         echo "$short_url | ${public_url}/$nonencoded_object | $file"
         [[ -x /usr/bin/xclip ]] && echo $copy_url|xclip -selection clipboard
-        [[ -x /usr/bin/pbcopy ]] && echo $copy_url|pbcopy
+        [[ -x /usr/bin/pbcopy ]] && echo $copy_url|tr -d '\n'|pbcopy
     fi
 }
 
