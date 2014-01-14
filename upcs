@@ -103,7 +103,7 @@ function check_api_key {
             eval "export $key=$value"
         done < ${temp_file}
     else
-        eval $(cat ${temp_file}|python -c "import json, sys;json = json.loads(sys.stdin.read());print \"export AuthToken='%s'\nexport StorageUrl='%s'\" % (json['access']['token']['id'], [ i['endpoints'][0]['publicURL'] for i in json['access']['serviceCatalog'] if i['type'] == 'object-store' ][0])")
+        eval $(cat ${temp_file}|python -c "import json, sys;json = json.loads(sys.stdin.read());print(\"export AuthToken='%s'\nexport StorageUrl='%s'\" % (json['access']['token']['id'], [ i['endpoints'][0]['publicURL'] for i in json['access']['serviceCatalog'] if i['type'] == 'object-store' ][0]))")
     fi
 
     if [[ -z ${StorageUrl} || -z ${AuthToken} ]];then
@@ -195,6 +195,9 @@ function put_large_object() {
     local segments_container=${object}_segments
     local obj_prefix="${segments_container}/${object}/$(date +%s)/${size}/"
 
+    [[ ${options} == "null" ]] && options=""
+    [[ ${ttl} == "null" ]] && ttl=""
+
     create_container  ${segments_container}
 
     let segment_bytes=${SEGMENT_SIZE_MB}*1024*1024
@@ -239,7 +242,7 @@ function put_large_object() {
 
 function put_object {
     local container=$1
-    local file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' $2)
+    local file=$(python -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' $2)
     local dest_name=$3
     if [[ -n $3 ]];then
         object=$3
@@ -311,7 +314,7 @@ function put_object {
         else
             nonencoded_object=${file##*/}
         fi
-                
+
         short_url=$(shorten_url "${public_url}/$object")
         copy_url=${short_url}
         if [[ -n ${PUBLIC_CNAME} && ${nonencoded_object} != *\ * ]];then
@@ -386,7 +389,7 @@ function choose_container {
 
 function help() {
 cat<<EOF
-upcs OPTIONS FILES1 FILE2...
+${0##*/} OPTIONS FILES1 FILE2...
 
 Use curl on the backup to upload files to rackspace Cloud Files.
 
@@ -443,7 +446,7 @@ content_type=
 create_container=
 ttl=null
 
-while getopts ":c:dxsu:k:a:C:qm:z:t:o:" opt; do
+while getopts ":c:dxsu:k:a:C:qm:z:t:ho:" opt; do
   case $opt in
     q)
     QUIET=true
@@ -522,7 +525,7 @@ for arg in $ARGS;do
 
     #MacOsX
     if readlink -f 2>&1 | grep -q illegal;then
-        file=$(python -c 'import os,sys;print os.path.realpath(sys.argv[1])' ${arg})
+        file=$(python -c 'import os,sys;print(os.path.realpath(sys.argv[1]))' ${arg})
     else
         file=$(readlink -f ${arg})
     fi
