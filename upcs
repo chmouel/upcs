@@ -426,7 +426,7 @@ Options are :
 -a Auth_URL - specify an alternate auth server.
 -c Container - specify the container to upload.
 -o Object Name - The name of the object to upload to.
--r - Generate a random object name.
+-r - Generate a random object name using uuid when uploading.
 -d - Use the last chosen container to upload.
 -C Content/Type - force a specific a content-type for file(s) uploaded.
 -m Container - create a container.
