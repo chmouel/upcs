@@ -114,6 +114,10 @@ function check_api_key {
             eval "export $key=$value"
         done < ${temp_file}
     else
+        if grep -q "Not Authorized" ${temp_file};then
+            echo "Invalid username or password."
+            exit 1
+        fi
         eval $(cat ${temp_file}|python -c "import json, sys;json = json.loads(sys.stdin.read());print(\"export AuthToken='%s'\nexport StorageUrl='%s'\" % (json['access']['token']['id'], [ i['endpoints'][0]['publicURL'] for i in json['access']['serviceCatalog'] if i['type'] == 'object-store' ][0]))")
     fi
 
