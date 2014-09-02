@@ -225,7 +225,7 @@ function put_large_object() {
         fi
 
         let nblocks=${length}/${block_size}
-        let reminader=${length}%${block_size} || true
+        let remainder=${length}%${block_size} || true
         [[ ${remainder} -gt 0 ]] && let nblocks++
 
         [[ $QUIET != "true" ]] && echo "Uploading segment ${segment_num} for ${file}"
